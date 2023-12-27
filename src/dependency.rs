@@ -38,7 +38,6 @@ impl TryFrom<(&String, &toml::Value)> for Dependency {
             Value::String(value_str) => Ok(Self {
                 _name: Arc::from(name.as_str()),
                 version: Version::Value(Arc::from(value_str.as_str())),
-                ..Default::default()
             }),
             Value::Table(table) => {
                 let mut version = None;
@@ -66,7 +65,6 @@ impl TryFrom<(&String, &toml::Value)> for Dependency {
                     Ok(Self {
                         _name: Arc::from(name.as_str()),
                         version,
-                        ..Default::default()
                     })
                 } else {
                     Err(anyhow!("invalid version {table:?}"))

@@ -5,8 +5,6 @@ use package::Package;
 use std::{
     collections::{HashMap, HashSet},
     fs,
-    path::Path,
-    sync::Arc,
 };
 use toml::Value;
 
@@ -17,26 +15,16 @@ mod workspace;
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    println!("checking dependencies for: {}", args.project_path);
-    let project_path = Path::new(args.project_path.as_ref());
-    if !project_path.exists() {
-        return Err(anyhow!("{} was not found", args.project_path));
-    }
-    let cargo_path = project_path.join("Cargo.toml");
-    if !cargo_path.exists() {
-        return Err(anyhow!("{cargo_path:?} was not found"));
-    }
-
-    let workspace_cargo = fs::read_to_string(cargo_path)?;
-    let workspace_cargo = workspace_cargo.parse::<Value>()?;
-    let workspace_cargo = Workspace::try_from(workspace_cargo)?;
+    println!(
+        "checking dependencies for: {}",
+        args.workspace_path.display()
+    );
+    let workspace_cargo = Workspace::try_from(args.workspace_path)?;
 
     let mut dependency_not_in_workspace: HashMap<_, HashSet<_>> = HashMap::new();
     let mut packages = HashMap::new();
 
-    for member in workspace_cargo.members {
-        let member: Arc<str> = Arc::from(member.as_str());
-        let member_path = project_path.join(member.as_ref()).join("Cargo.toml");
+    for (member, member_path) in workspace_cargo.members()? {
         if !member_path.exists() {
             return Err(anyhow!("{member_path:?} was not found"));
         }

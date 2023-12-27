@@ -4,7 +4,7 @@ Verifies the dependencies of member projects of a workspace to find shared ones 
 
 One can use:
 ```sh
-work_dep --project-path ~/git/my_project
+work_dep --workspace-path ~/git/my_project
 futures-util could be in the workspace, it is used by
 [
     (
