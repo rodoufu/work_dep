@@ -2,6 +2,13 @@
 name = "work_dep"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+description = "Verifies the dependencies of member projects of a workspace to find shared ones to be added to the depencencies of the workspace"
+homepage = "https://github.com/rodoufu/work_dep"
+repository = "https://github.com/rodoufu/work_dep"
+readme = "README.md"
+keywords = ["crate", "dependency", "workspace"]
+categories = ["command-line-utilities", "development-tools"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
