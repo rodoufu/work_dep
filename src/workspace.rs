@@ -1,21 +1,20 @@
-use crate::dependency::Dependency;
-use anyhow::{anyhow, Error};
-use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
+use std::{fs, path::PathBuf, sync::Arc};
 use toml::Value;
 
 const CARGO_TOML: &str = "Cargo.toml";
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Workspace {
-    pub(crate) _members: Vec<Arc<str>>,
-    pub(crate) _dependencies: HashMap<Arc<str>, Dependency>,
-    pub(crate) workspace_path: PathBuf,
+    members: Vec<Arc<str>>,
+    pub(super) workspace_path: PathBuf,
 }
 
 impl Workspace {
-    pub(crate) fn members(&self) -> anyhow::Result<Vec<(Arc<str>, PathBuf)>> {
+    pub(crate) fn members(
+        &self,
+    ) -> Result<Vec<(Arc<str>, PathBuf)>, super::workspace_dependency::Error> {
         Ok(self
-            ._members
+            .members
             .iter()
             .flat_map(|member| {
                 if member.ends_with('*') {
@@ -30,7 +29,7 @@ impl Workspace {
                             file.join(CARGO_TOML),
                         ))
                     }
-                    Result::<_, anyhow::Error>::Ok(resp)
+                    Result::<_, super::workspace_dependency::Error>::Ok(resp)
                 } else {
                     Ok(vec![(
                         member.clone(),
@@ -43,12 +42,23 @@ impl Workspace {
     }
 }
 
-impl TryFrom<(PathBuf, Value)> for Workspace {
-    type Error = Error;
-    fn try_from((workspace_path, value): (PathBuf, Value)) -> Result<Self, Self::Error> {
-        if let Value::Table(table) = value {
+impl TryFrom<PathBuf> for Workspace {
+    type Error = super::workspace_dependency::Error;
+
+    fn try_from(workspace_path: PathBuf) -> Result<Self, Self::Error> {
+        if !workspace_path.exists() {
+            return Err(Self::Error::PathNotFound(workspace_path));
+        }
+        let cargo_path = workspace_path.join(CARGO_TOML);
+        if !cargo_path.exists() {
+            return Err(Self::Error::PathNotFound(cargo_path));
+        }
+
+        let workspace_cargo = fs::read_to_string(cargo_path)?;
+        let workspace_cargo = workspace_cargo.parse::<Value>()?;
+
+        if let Value::Table(table) = &workspace_cargo {
             let mut members = vec![];
-            let mut dependencies = HashMap::new();
 
             if let Some(workspace) = table.get("workspace") {
                 if let Some(Value::Array(members_vec)) = workspace.get("members") {
@@ -58,45 +68,18 @@ impl TryFrom<(PathBuf, Value)> for Workspace {
                         }
                     }
                 } else {
-                    return Err(anyhow!("members not found in {workspace:?}"));
+                    return Err(Self::Error::NoMembersInWorkspace(workspace.clone()));
                 }
 
-                if let Some(Value::Table(depencencies_table)) = workspace.get("dependencies") {
-                    for (name, content) in depencencies_table {
-                        dependencies.insert(
-                            Arc::from(name.as_str()),
-                            Dependency::try_from((name, content))?,
-                        );
-                    }
-                }
                 Ok(Self {
-                    _members: members,
-                    _dependencies: dependencies,
+                    members,
                     workspace_path,
                 })
             } else {
-                Err(anyhow!("workspace not found {table:?}"))
+                Err(Self::Error::WorkspaceNotFound(workspace_cargo))
             }
         } else {
-            Err(anyhow!("unexpected workspace value {value:?}"))
+            Err(Self::Error::WorkspaceUnexpectedValue(workspace_cargo))
         }
-    }
-}
-
-impl TryFrom<PathBuf> for Workspace {
-    type Error = Error;
-
-    fn try_from(workspace_path: PathBuf) -> Result<Self, Self::Error> {
-        if !workspace_path.exists() {
-            return Err(anyhow!("{} was not found", workspace_path.display()));
-        }
-        let cargo_path = workspace_path.join(CARGO_TOML);
-        if !cargo_path.exists() {
-            return Err(anyhow!("{cargo_path:?} was not found"));
-        }
-
-        let workspace_cargo = fs::read_to_string(cargo_path)?;
-        let workspace_cargo = workspace_cargo.parse::<Value>()?;
-        Workspace::try_from((workspace_path, workspace_cargo))
     }
 }

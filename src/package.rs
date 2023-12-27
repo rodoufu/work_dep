@@ -1,20 +1,22 @@
 use crate::dependency::Dependency;
-use anyhow::{anyhow, Error};
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
 use toml::Value;
 
 #[derive(Debug, Clone)]
 pub(crate) struct Package {
-    pub(crate) _name: Arc<str>,
-    pub(crate) dependencies: HashMap<Arc<str>, Dependency>,
-    pub(crate) dev_dependencies: HashMap<Arc<str>, Dependency>,
+    pub(super) name: Arc<str>,
+    pub(super) dependencies: HashMap<Arc<str>, Dependency>,
+    pub(super) dev_dependencies: HashMap<Arc<str>, Dependency>,
 }
 
-impl TryFrom<Value> for Package {
-    type Error = Error;
+impl TryFrom<PathBuf> for Package {
+    type Error = super::workspace_dependency::Error;
 
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        if let Value::Table(table) = value {
+    fn try_from(member_path: PathBuf) -> Result<Self, Self::Error> {
+        let member_cargo = fs::read_to_string(member_path)?;
+        let member_cargo = member_cargo.parse::<Value>()?;
+
+        if let Value::Table(table) = member_cargo {
             let name;
             let mut dependencies = HashMap::new();
             let mut dev_dependencies = HashMap::new();
@@ -23,37 +25,38 @@ impl TryFrom<Value> for Package {
                 if let Some(Value::String(name_str)) = package_tab.get("name") {
                     name = Arc::from(name_str.as_str());
                 } else {
-                    return Err(anyhow!("name not found in {package_tab:?}"));
+                    return Err(Self::Error::PropertyNotFound(
+                        "name".into(),
+                        Value::Table(package_tab.clone()),
+                    ));
                 }
             } else {
-                return Err(anyhow!("package not found in {table:?}"));
+                return Err(Self::Error::PropertyNotFound(
+                    "package".into(),
+                    Value::Table(table),
+                ));
             }
 
             if let Some(Value::Table(dependencies_table)) = table.get("dependencies") {
                 for (name, content) in dependencies_table {
-                    dependencies.insert(
-                        Arc::from(name.as_str()),
-                        Dependency::try_from((name, content))?,
-                    );
+                    dependencies.insert(Arc::from(name.as_str()), Dependency::try_from(content)?);
                 }
             }
 
             if let Some(Value::Table(dependencies_table)) = table.get("dev-dependencies") {
                 for (name, content) in dependencies_table {
-                    dev_dependencies.insert(
-                        Arc::from(name.as_str()),
-                        Dependency::try_from((name, content))?,
-                    );
+                    dev_dependencies
+                        .insert(Arc::from(name.as_str()), Dependency::try_from(content)?);
                 }
             }
 
             Ok(Self {
-                _name: name,
+                name,
                 dependencies,
                 dev_dependencies,
             })
         } else {
-            Err(anyhow!("unexpected package value {value:?}"))
+            Err(Self::Error::PackageUnexpectedValue(member_cargo))
         }
     }
 }

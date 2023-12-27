@@ -1,6 +1,6 @@
 [package]
 name = "work_dep"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 license = "MIT"
 description = "Verifies the dependencies of member projects of a workspace to find shared ones to be added to the depencencies of the workspace"
@@ -16,3 +16,6 @@ categories = ["command-line-utilities", "development-tools"]
 clap = { version = "4.4", features = ["derive"] }
 toml = "0.8.8"
 anyhow = "1.0"
+thiserror = "1.0"
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_json = "1.0"

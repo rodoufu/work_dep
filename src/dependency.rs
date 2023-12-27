@@ -1,43 +1,40 @@
-use anyhow::{anyhow, Error};
-use std::sync::Arc;
+use serde::Serialize;
+use std::{path::PathBuf, sync::Arc};
 use toml::Value;
 
 /// Types of versions in a TOML file.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub(crate) enum Version {
     /// Workspace dependency
     Workspace,
     /// Version number
-    Value(Arc<str>),
+    Version(Arc<str>),
     /// Points to a git repository and a branch
     GitBranch((Arc<str>, Arc<str>)),
     /// Points to a relative path in the file system
-    Path(Arc<str>),
+    Path(PathBuf),
 }
 
 #[derive(Debug, Clone)]
 pub(crate) struct Dependency {
-    pub(crate) _name: Arc<str>,
-    pub(crate) version: Version,
+    pub(super) version: Version,
 }
 
 impl Default for Dependency {
     fn default() -> Self {
         Self {
-            _name: Arc::from(""),
             version: Version::Workspace,
         }
     }
 }
 
-impl TryFrom<(&String, &toml::Value)> for Dependency {
-    type Error = Error;
+impl TryFrom<&toml::Value> for Dependency {
+    type Error = super::workspace_dependency::Error;
 
-    fn try_from((name, value): (&String, &Value)) -> Result<Self, Self::Error> {
+    fn try_from(value: &Value) -> Result<Self, Self::Error> {
         match value {
             Value::String(value_str) => Ok(Self {
-                _name: Arc::from(name.as_str()),
-                version: Version::Value(Arc::from(value_str.as_str())),
+                version: Version::Version(Arc::from(value_str.as_str())),
             }),
             Value::Table(table) => {
                 let mut version = None;
@@ -47,7 +44,7 @@ impl TryFrom<(&String, &toml::Value)> for Dependency {
                     }
                 }
                 if let Some(Value::String(version_str)) = table.get("version") {
-                    version = Some(Version::Value(version_str.as_str().into()));
+                    version = Some(Version::Version(version_str.as_str().into()));
                 }
                 if let Some(Value::String(path_str)) = table.get("path") {
                     version = Some(Version::Path(path_str.as_str().into()));
@@ -62,15 +59,12 @@ impl TryFrom<(&String, &toml::Value)> for Dependency {
                 }
 
                 if let Some(version) = version {
-                    Ok(Self {
-                        _name: Arc::from(name.as_str()),
-                        version,
-                    })
+                    Ok(Self { version })
                 } else {
-                    Err(anyhow!("invalid version {table:?}"))
+                    Err(Self::Error::InvalidVersion(value.clone()))
                 }
             }
-            _ => Err(anyhow!("unexpected value for Dependency {value:?}")),
+            _ => Err(Self::Error::DependencyUnexpectedValue(value.clone())),
         }
     }
 }
