@@ -2,11 +2,16 @@ use anyhow::{anyhow, Error};
 use std::sync::Arc;
 use toml::Value;
 
+/// Types of versions in a TOML file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Version {
+    /// Workspace dependency
     Workspace,
+    /// Version number
     Value(Arc<str>),
+    /// Points to a git repository and a branch
     GitBranch((Arc<str>, Arc<str>)),
+    /// Points to a relative path in the file system
     Path(Arc<str>),
 }
 
