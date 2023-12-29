@@ -2,6 +2,7 @@ use clap::Parser;
 use std::{path::PathBuf, str::FromStr};
 
 #[derive(Debug, Default, Clone)]
+#[allow(clippy::upper_case_acronyms)]
 pub(crate) enum OutputFormat {
     #[default]
     Text,

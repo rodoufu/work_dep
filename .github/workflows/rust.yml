@@ -16,6 +16,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Check formatting
+      run: cargo fmt --all -- --check --config reorder_imports=true,imports_granularity="Crate"
+    - name: Audit verify
+      run: cargo audit
+    - name: Lint/Clippy
+      run: cargo clippy --all-targets --all-features -- -D warnings
     - name: Build
       run: cargo build --verbose
     - name: Run tests
