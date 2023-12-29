@@ -5,6 +5,7 @@ use std::{path::PathBuf, str::FromStr};
 pub(crate) enum OutputFormat {
     #[default]
     Text,
+    #[allow(clippy::upper_case_acronyms)]
     JSON,
 }
 
