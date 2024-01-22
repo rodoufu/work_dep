@@ -18,8 +18,9 @@ pub enum Error {
     WorkspaceUnexpectedValue(toml::Value),
     #[error("{0} was not found")]
     PathNotFound(PathBuf),
+    #[allow(clippy::upper_case_acronyms)]
     #[error("{0}")]
-    IoError(#[from] io::Error),
+    IO(#[from] io::Error),
     #[error("{0}")]
     TomlParse(#[from] toml::de::Error),
     #[error("invalid version {0}")]
